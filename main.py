@@ -1,92 +1,161 @@
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+from sqlalchemy import create_engine, Column, String, Integer, func
+from sqlalchemy.orm import sessionmaker, Session, declarative_base
 from typing import List
+from pydantic import BaseModel
 import json
 
-from backend.database import get_db, engine
-from backend.models import Car
-from backend.schemas import CarCreate, CarResponse, CarUpdate
-from backend.crud import (get_cars, get_car_by_id, create_car, 
-                         update_car, delete_car)
+# ================= DATABASE =================
+engine = create_engine(
+    "sqlite:///./cars.db",
+    connect_args={"check_same_thread": False}
+)
 
-# Tables create
-Car.metadata.create_all(bind=engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
-app = FastAPI(title="🚗 Car Manager API", version="2.0")
+# ================= SCHEMAS =================
+class CarBase(BaseModel):
+    car_id: str
+    brand: str
+    model: str
+    year: int
+    price: int
+
+class CarCreate(CarBase):
+    pass
+
+class CarUpdate(BaseModel):
+    brand: str
+    model: str
+    year: int
+    price: int
+
+class CarResponse(CarBase):
+    class Config:
+        from_attributes = True
+
+# ================= MODEL =================
+class Car(Base):
+    __tablename__ = "cars"
+
+    car_id = Column(String(10), primary_key=True, index=True)
+    brand = Column(String(50))
+    model = Column(String(100))
+    year = Column(Integer)
+    price = Column(Integer)
+
+Base.metadata.create_all(bind=engine)
+
+# ================= DB DEP =================
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+# ================= CRUD =================
+def get_all_cars(db: Session):
+    return db.query(Car).all()
+
+def get_car_by_id(db: Session, car_id: str):
+    return db.query(Car).filter(Car.car_id == car_id).first()
+
+def create_car(db: Session, car: CarCreate):
+    if get_car_by_id(db, car.car_id):
+        raise HTTPException(status_code=400, detail="Car already exists")
+
+    db_car = Car(**car.dict())
+    db.add(db_car)
+    db.commit()
+    db.refresh(db_car)
+    return db_car
+
+def update_car(db: Session, car_id: str, car: CarUpdate):
+    db_car = get_car_by_id(db, car_id)
+    if not db_car:
+        raise HTTPException(status_code=404, detail="Car not found")
+
+    for key, value in car.dict().items():
+        setattr(db_car, key, value)
+
+    db.commit()
+    db.refresh(db_car)
+    return db_car
+
+def delete_car(db: Session, car_id: str):
+    db_car = get_car_by_id(db, car_id)
+    if not db_car:
+        raise HTTPException(status_code=404, detail="Car not found")
+
+    db.delete(db_car)
+    db.commit()
+    return {"message": "Car deleted successfully"}
+
+# ================= APP =================
+app = FastAPI(title="🚗 Car Manager API")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-@app.get("/", tags=["Home"])
-async def root():
-    return {"message": "🚗 Car Manager API v2.0", "docs": "/docs"}
+# ================= ROUTES =================
+@app.get("/")
+def root():
+    return {"message": "🚗 Car API is running"}
 
-@app.get("/cars", response_model=List[CarResponse], tags=["Cars"])
-async def read_cars(skip: int = 0, limit: int = Query(100, le=1000), db: Session = Depends(get_db)):
-    cars = get_cars(db, skip=skip, limit=limit)
-    return cars
+# Get all cars
+@app.get("/cars", response_model=List[CarResponse])
+def read_cars(db: Session = Depends(get_db)):
+    return get_all_cars(db)
 
-@app.get("/car/{car_id}", response_model=CarResponse, tags=["Cars"])
-async def read_car(car_id: str, db: Session = Depends(get_db)):
+# Get single car
+@app.get("/cars/{car_id}", response_model=CarResponse)
+def read_car(car_id: str, db: Session = Depends(get_db)):
     car = get_car_by_id(db, car_id)
     if not car:
         raise HTTPException(status_code=404, detail="Car not found")
     return car
 
-@app.post("/car", response_model=CarResponse, tags=["Cars"])
-async def create_car_endpoint(car: CarCreate, db: Session = Depends(get_db)):
+# Add car
+@app.post("/cars", response_model=CarResponse)
+def add_car(car: CarCreate, db: Session = Depends(get_db)):
     return create_car(db, car)
 
-@app.put("/car/{car_id}", response_model=CarResponse, tags=["Cars"])
-async def update_car_endpoint(car_id: str, car: CarUpdate, db: Session = Depends(get_db)):
-    updated_car = update_car(db, car_id, car)
-    if not updated_car:
-        raise HTTPException(status_code=404, detail="Car not found")
-    return updated_car
+# Update car
+@app.put("/cars/{car_id}", response_model=CarResponse)
+def edit_car(car_id: str, car: CarUpdate, db: Session = Depends(get_db)):
+    return update_car(db, car_id, car)
 
-@app.delete("/car/{car_id}", tags=["Cars"])
-async def delete_car_endpoint(car_id: str, db: Session = Depends(get_db)):
-    if not delete_car(db, car_id):
-        raise HTTPException(status_code=404, detail="Car not found")
-    return {"message": "Car deleted successfully"}
+# Delete car
+@app.delete("/cars/{car_id}")
+def remove_car(car_id: str, db: Session = Depends(get_db)):
+    return delete_car(db, car_id)
 
-@app.get("/cars/sort", tags=["Cars"])
-async def sort_cars(sort_by: str = Query("price", regex="^(price|year)$"), 
-                   order: str = Query("asc", regex="^(asc|desc)$"), 
-                   db: Session = Depends(get_db)):
-    cars = get_cars(db)
-    cars.sort(key=lambda x: getattr(x, sort_by), reverse=(order == "desc"))
-    return cars
-
-@app.get("/stats", tags=["Stats"])
-async def get_stats(db: Session = Depends(get_db)):
-    total = db.query(Car).count()
-    avg_price = db.query(func.avg(Car.price)).scalar() or 0
+# Stats
+@app.get("/stats")
+def stats(db: Session = Depends(get_db)):
     return {
-        "total_cars": total,
-        "avg_price": round(float(avg_price)),
-        "min_price": db.query(func.min(Car.price)).scalar(),
-        "max_price": db.query(func.max(Car.price)).scalar()
+        "total_cars": db.query(Car).count(),
+        "average_price": round(db.query(func.avg(Car.price)).scalar() or 0)
     }
 
-@app.post("/migrate", tags=["Migration"])
-async def migrate_json(db: Session = Depends(get_db)):
+# JSON Migration
+@app.post("/migrate")
+def migrate(db: Session = Depends(get_db)):
     try:
-        with open("../data/car.json", "r") as f:
+        with open("../data/car.json") as f:
             data = json.load(f)
-        
-        count = 0
-        for car_data in data.values():
-            if not get_car_by_id(db, car_data["car_id"]):
-                create_car(db, CarCreate(**car_data))
-                count += 1
-        db.commit()
-        return {"message": f"✅ Migrated {count} cars from JSON"}
+
+        for item in data.values():
+            if not get_car_by_id(db, item["car_id"]):
+                create_car(db, CarCreate(**item))
+
+        return {"message": "✅ Data migrated successfully"}
     except FileNotFoundError:
-        raise HTTPException(404, "car.json not found")
+        raise HTTPException(status_code=404, detail="car.json not found")
