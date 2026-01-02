@@ -1,0 +1,15 @@
+{
+    "C001": {
+        "car_id": "C001",
+        "brand": "Toyota",
+        "model": "innova",
+        "year": 2022,
+        "price": 100000
+    },
+    "C002": {
+        "brand": "Hyundai",
+        "model": "Creta",
+        "year": 2023,
+        "price": 1500000
+    }
+}
