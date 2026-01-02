@@ -1,512 +1,262 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="en" class="dark">
 <head>
   <meta charset="UTF-8" />
   <title>Car Manager Dashboard</title>
   <script src="https://cdn.tailwindcss.com"></script>
+
   <style>
-    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
     .glass {
-      background: rgba(15, 23, 42, 0.75);
-      backdrop-filter: blur(18px);
-      -webkit-backdrop-filter: blur(18px);
+      background: rgba(15, 23, 42, 0.72);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+
+    .fade-in {
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .btn {
+      transition: all 0.2s ease;
+    }
+
+    .btn:active {
+      transform: scale(0.96);
     }
   </style>
 </head>
+
 <body class="min-h-screen bg-gradient-to-br from-slate-900 via-slate-950 to-sky-900 text-slate-100">
-  <div class="min-h-screen flex flex-col">
-    <!-- Top navbar -->
-    <header class="border-b border-slate-800/70 bg-slate-950/70 backdrop-blur">
-      <div class="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-sky-400 to-emerald-400 flex items-center justify-center shadow-lg shadow-sky-500/40">
-            <span class="text-xl font-extrabold">C</span>
-          </div>
-          <div>
-            <h1 class="text-lg font-semibold tracking-tight">Car Manager</h1>
-            <p class="text-xs text-slate-400">FastAPI powered high-graphics dashboard</p>
-          </div>
-        </div>
-        <div class="flex items-center gap-3">
-          <span class="hidden md:inline text-xs text-slate-400">Status: <span id="statusText" class="text-emerald-400">Idle</span></span>
-          <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-sky-500 to-indigo-500 flex items-center justify-center text-xs font-bold shadow-md shadow-sky-500/40">
-            CM
-          </div>
-        </div>
+
+<!-- HEADER -->
+<header class="border-b border-slate-800 bg-slate-950/70 backdrop-blur">
+  <div class="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-400 to-emerald-400 flex items-center justify-center font-extrabold text-slate-900">
+        C
       </div>
-    </header>
-
-    <!-- Main content -->
-    <main class="flex-1">
-      <div class="max-w-6xl mx-auto px-4 py-6 space-y-6">
-
-        <!-- API URL + stats -->
-        <section class="grid gap-4 md:grid-cols-[2fr,1fr]">
-          <div class="glass rounded-2xl border border-slate-800/60 p-4 shadow-xl shadow-black/40">
-            <label class="block text-xs font-medium text-slate-400 mb-1">API Base URL</label>
-            <div class="flex gap-2">
-              <input
-                type="text"
-                id="baseUrl"
-                class="w-full rounded-xl bg-slate-900/60 border border-slate-700/70 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500 placeholder:text-slate-500"
-                value="http://127.0.0.1:8000"
-              />
-              <button
-                id="pingBtn"
-                class="inline-flex items-center gap-1 rounded-xl bg-gradient-to-tr from-sky-500 to-cyan-400 px-3 py-2 text-xs font-semibold text-slate-900 shadow-lg shadow-sky-500/40 hover:from-sky-400 hover:to-cyan-300 active:scale-95 transition"
-              >
-                <span>Ping</span>
-              </button>
-            </div>
-            <p id="pingMsg" class="mt-2 text-xs text-slate-400"></p>
-          </div>
-
-          <div class="grid grid-cols-2 gap-3">
-            <div class="glass rounded-2xl border border-slate-800/60 p-3 flex flex-col justify-between">
-              <div class="flex items-center justify-between">
-                <span class="text-xs text-slate-400">Total Cars</span>
-                <span class="w-6 h-6 rounded-lg bg-sky-500/20 text-sky-400 flex items-center justify-center text-xs">#</span>
-              </div>
-              <div class="mt-2 text-2xl font-semibold" id="totalCars">0</div>
-              <p class="mt-1 text-[11px] text-slate-500">Live count from server</p>
-            </div>
-            <div class="glass rounded-2xl border border-slate-800/60 p-3 flex flex-col justify-between">
-              <div class="flex items-center justify-between">
-                <span class="text-xs text-slate-400">Avg Price</span>
-                <span class="w-6 h-6 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xs">₹</span>
-              </div>
-              <div class="mt-2 text-2xl font-semibold" id="avgPrice">0</div>
-              <p class="mt-1 text-[11px] text-slate-500">Approx average of all cars</p>
-            </div>
-          </div>
-        </section>
-
-        <!-- Main grid: form + list -->
-        <section class="grid gap-5 lg:grid-cols-[1.1fr,1.6fr]">
-          <!-- Form card -->
-          <div class="glass rounded-2xl border border-slate-800/60 p-5 shadow-xl shadow-black/50">
-            <div class="flex items-center justify-between mb-3">
-              <div>
-                <h2 class="text-sm font-semibold tracking-tight">Car Editor</h2>
-                <p class="text-[11px] text-slate-400">Create, update or patch car details</p>
-              </div>
-              <span class="inline-flex items-center rounded-full bg-sky-500/15 px-2 py-1 text-[10px] font-medium text-sky-300 border border-sky-500/30">
-                Live API
-              </span>
-            </div>
-
-            <form id="carForm" class="space-y-3">
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-xs font-medium text-slate-400 mb-1">Car ID</label>
-                  <input id="car_id" type="text" class="w-full rounded-xl bg-slate-900/60 border border-slate-700/70 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="C001" required />
-                </div>
-                <div>
-                  <label class="block text-xs font-medium text-slate-400 mb-1">Brand</label>
-                  <input id="brand" type="text" class="w-full rounded-xl bg-slate-900/60 border border-slate-700/70 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Toyota" required />
-                </div>
-              </div>
-
-              <div class="grid grid-cols-2 gap-3">
-                <div>
-                  <label class="block text-xs font-medium text-slate-400 mb-1">Model</label>
-                  <input id="model" type="text" class="w-full rounded-xl bg-slate-900/60 border border-slate-700/70 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="Fortuner" required />
-                </div>
-                <div class="grid grid-cols-2 gap-2">
-                  <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Year</label>
-                    <input id="year" type="number" class="w-full rounded-xl bg-slate-900/60 border border-slate-700/70 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="2022" required />
-                  </div>
-                  <div>
-                    <label class="block text-xs font-medium text-slate-400 mb-1">Price (₹)</label>
-                    <input id="price" type="number" class="w-full rounded-xl bg-slate-900/60 border border-slate-700/70 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500" placeholder="2500000" required />
-                  </div>
-                </div>
-              </div>
-
-              <div class="flex flex-wrap gap-2 pt-1">
-                <button
-                  type="submit"
-                  class="inline-flex items-center justify-center gap-1 rounded-xl bg-gradient-to-tr from-sky-500 to-cyan-400 px-3 py-2 text-xs font-semibold text-slate-900 shadow-lg shadow-sky-500/40 hover:from-sky-400 hover:to-cyan-300 active:scale-95 transition"
-                >
-                  Create (POST)
-                </button>
-                <button
-                  type="button"
-                  id="updateBtn"
-                  class="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-800/80 px-3 py-2 text-xs font-semibold text-slate-100 border border-slate-600 hover:bg-slate-700 active:scale-95 transition"
-                >
-                  Full Update (PUT)
-                </button>
-                <button
-                  type="button"
-                  id="patchBtn"
-                  class="inline-flex items-center justify-center gap-1 rounded-xl bg-emerald-500/90 px-3 py-2 text-xs font-semibold text-slate-900 shadow-md shadow-emerald-500/30 hover:bg-emerald-400 active:scale-95 transition"
-                >
-                  Patch (PATCH)
-                </button>
-                <button
-                  type="button"
-                  id="resetBtn"
-                  class="inline-flex items-center justify-center gap-1 rounded-xl bg-slate-900/80 px-3 py-2 text-xs font-semibold text-slate-300 border border-slate-700 hover:bg-slate-800 active:scale-95 transition"
-                >
-                  Clear
-                </button>
-              </div>
-
-              <p id="formMsg" class="text-[11px] mt-1"></p>
-            </form>
-          </div>
-
-          <!-- List card -->
-          <div class="glass rounded-2xl border border-slate-800/60 p-5 shadow-xl shadow-black/50">
-            <div class="flex items-center justify-between mb-3">
-              <div>
-                <h2 class="text-sm font-semibold tracking-tight">Garage</h2>
-                <p class="text-[11px] text-slate-400">View, sort and manage all cars</p>
-              </div>
-              <div class="flex items-center gap-2">
-                <div class="flex items-center gap-1 text-[11px] text-slate-400">
-                  <span>Sort</span>
-                  <select id="sortBy" class="rounded-lg bg-slate-900/70 border border-slate-700/70 px-2 py-1 text-[11px]">
-                    <option value="price">Price</option>
-                    <option value="year">Year</option>
-                  </select>
-                  <select id="sortOrder" class="rounded-lg bg-slate-900/70 border border-slate-700/70 px-2 py-1 text-[11px]">
-                    <option value="asc">↑</option>
-                    <option value="desc">↓</option>
-                  </select>
-                </div>
-                <button
-                  id="sortBtn"
-                  class="inline-flex items-center rounded-xl bg-slate-900/80 px-2.5 py-1.5 text-[11px] font-medium text-slate-200 border border-slate-700 hover:bg-slate-800 active:scale-95 transition"
-                >
-                  Apply
-                </button>
-                <button
-                  id="loadCarsBtn"
-                  class="inline-flex items-center rounded-xl bg-sky-500/15 px-2.5 py-1.5 text-[11px] font-medium text-sky-300 border border-sky-500/40 hover:bg-sky-500/25 active:scale-95 transition"
-                >
-                  Refresh
-                </button>
-              </div>
-            </div>
-
-            <div class="relative max-h-[380px] overflow-hidden rounded-2xl border border-slate-800/70">
-              <div class="absolute inset-0 pointer-events-none bg-gradient-to-b from-slate-900/40 via-transparent to-slate-950/90"></div>
-              <div class="relative max-h-[380px] overflow-y-auto">
-                <table class="w-full text-xs">
-                  <thead class="bg-slate-900/80 sticky top-0 z-10">
-                    <tr class="text-[11px] text-slate-400">
-                      <th class="px-3 py-2 text-left font-medium">ID</th>
-                      <th class="px-3 py-2 text-left font-medium">Brand / Model</th>
-                      <th class="px-3 py-2 text-right font-medium">Year</th>
-                      <th class="px-3 py-2 text-right font-medium">Price</th>
-                      <th class="px-3 py-2 text-center font-medium">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody id="carsTableBody" class="divide-y divide-slate-800/80"></tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        </section>
+      <div>
+        <h1 class="text-lg font-semibold">Car Manager</h1>
+        <p class="text-xs text-slate-400">FastAPI Full-Stack Dashboard</p>
       </div>
-    </main>
+    </div>
+
+    <div class="text-xs text-slate-400">
+      Status:
+      <span id="statusText" class="text-emerald-400 ml-1">Online</span>
+    </div>
   </div>
+</header>
 
-  <script>
-    const baseUrlInput = document.getElementById('baseUrl');
-    const pingBtn = document.getElementById('pingBtn');
-    const pingMsg = document.getElementById('pingMsg');
-    const statusText = document.getElementById('statusText');
+<!-- MAIN -->
+<main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
 
-    const carForm = document.getElementById('carForm');
-    const carIdInput = document.getElementById('car_id');
-    const brandInput = document.getElementById('brand');
-    const modelInput = document.getElementById('model');
-    const yearInput = document.getElementById('year');
-    const priceInput = document.getElementById('price');
-    const formMsg = document.getElementById('formMsg');
-    const resetBtn = document.getElementById('resetBtn');
+  <!-- STATS -->
+  <section class="grid grid-cols-2 md:grid-cols-4 gap-4">
+    <div class="glass rounded-2xl p-4 text-center">
+      <p class="text-xs text-slate-400">Total Cars</p>
+      <p id="totalCars" class="text-3xl font-semibold mt-1">0</p>
+    </div>
+    <div class="glass rounded-2xl p-4 text-center">
+      <p class="text-xs text-slate-400">Average Price</p>
+      <p id="avgPrice" class="text-3xl font-semibold mt-1">₹0</p>
+    </div>
+    <div class="glass rounded-2xl p-4 text-center col-span-2">
+      <p class="text-xs text-slate-400 mb-1">API Base URL</p>
+      <input
+        id="baseUrl"
+        class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs"
+        value="http://127.0.0.1:8000"
+      />
+    </div>
+  </section>
 
-    const loadCarsBtn = document.getElementById('loadCarsBtn');
-    const sortBtn = document.getElementById('sortBtn');
-    const sortBySelect = document.getElementById('sortBy');
-    const sortOrderSelect = document.getElementById('sortOrder');
-    const carsTableBody = document.getElementById('carsTableBody');
+  <!-- GRID -->
+  <section class="grid lg:grid-cols-[1.1fr,1.9fr] gap-6">
 
-    const updateBtn = document.getElementById('updateBtn');
-    const patchBtn = document.getElementById('patchBtn');
+    <!-- FORM -->
+    <div class="glass rounded-2xl p-5">
+      <h2 class="text-sm font-semibold mb-4">Car Editor</h2>
 
-    const totalCarsSpan = document.getElementById('totalCars');
-    const avgPriceSpan = document.getElementById('avgPrice');
+      <form id="carForm" class="space-y-3">
+        <input id="car_id" placeholder="Car ID (C001)" class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs" required>
+        <input id="brand" placeholder="Brand" class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs" required>
+        <input id="model" placeholder="Model" class="w-full rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs" required>
 
-    function setStatus(text, colorClass = 'text-emerald-400') {
-      statusText.textContent = text;
-      statusText.className = colorClass;
-    }
+        <div class="grid grid-cols-2 gap-3">
+          <input id="year" type="number" placeholder="Year" class="rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs" required>
+          <input id="price" type="number" placeholder="Price" class="rounded-xl bg-slate-900 border border-slate-700 px-3 py-2 text-xs" required>
+        </div>
 
-    function setFormMessage(text, type = 'ok') {
-      formMsg.textContent = text;
-      formMsg.className =
-        'text-[11px] mt-1 ' +
-        (type === 'ok' ? 'text-emerald-400' : 'text-rose-400');
-    }
+        <div class="flex gap-2 pt-2">
+          <button class="btn flex-1 rounded-xl bg-sky-500 text-slate-900 text-xs py-2 font-semibold">
+            Create
+          </button>
+          <button type="button" id="updateBtn" class="btn flex-1 rounded-xl bg-emerald-500 text-slate-900 text-xs py-2 font-semibold">
+            Update
+          </button>
+          <button type="button" id="resetBtn" class="btn rounded-xl bg-slate-800 px-3 text-xs">
+            Clear
+          </button>
+        </div>
 
-    async function apiRequest(path, options = {}) {
-      const base = baseUrlInput.value.replace(/\/+$/, '');
-      const url = base + path;
+        <p id="formMsg" class="text-xs mt-2"></p>
+      </form>
+    </div>
 
-      setStatus('Loading...', 'text-sky-400');
-      try {
-        const resp = await fetch(url, {
-          headers: { 'Content-Type': 'application/json' },
-          ...options,
-        });
+    <!-- TABLE -->
+    <div class="glass rounded-2xl p-5">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-sm font-semibold">Garage</h2>
+        <button id="loadCarsBtn" class="btn text-xs px-3 py-1 rounded-xl bg-slate-800">
+          Refresh
+        </button>
+      </div>
 
-        let data = null;
-        try {
-          data = await resp.json();
-        } catch {}
+      <div class="max-h-[420px] overflow-y-auto">
+        <table class="w-full text-xs">
+          <thead class="text-slate-400 sticky top-0 bg-slate-900">
+            <tr>
+              <th class="p-2 text-left">ID</th>
+              <th class="p-2 text-left">Car</th>
+              <th class="p-2 text-right">Year</th>
+              <th class="p-2 text-right">Price</th>
+              <th class="p-2 text-center">Action</th>
+            </tr>
+          </thead>
+          <tbody id="carsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
 
-        if (!resp.ok) {
-          const detail = data && data.detail ? data.detail : resp.statusText;
-          throw new Error(detail);
-        }
+  </section>
+</main>
 
-        setStatus('Online', 'text-emerald-400');
-        return data;
-      } catch (err) {
-        setStatus('Error', 'text-rose-400');
-        throw err;
-      }
-    }
+<!-- SCRIPT -->
+<script>
+const baseUrl = () => document.getElementById("baseUrl").value.replace(/\/+$/, "");
+const carsTableBody = document.getElementById("carsTableBody");
+const totalCarsSpan = document.getElementById("totalCars");
+const avgPriceSpan = document.getElementById("avgPrice");
+const formMsg = document.getElementById("formMsg");
 
-    function renderStats(carsArray) {
-      const total = carsArray.length;
-      totalCarsSpan.textContent = total;
+async function api(path, options = {}) {
+  const res = await fetch(baseUrl() + path, {
+    headers: { "Content-Type": "application/json" },
+    ...options,
+  });
+  if (!res.ok) throw new Error((await res.json()).detail || "Error");
+  return res.json();
+}
 
-      if (total === 0) {
-        avgPriceSpan.textContent = '0';
-        return;
-      }
-      const sum = carsArray.reduce((acc, c) => acc + (Number(c.price) || 0), 0);
-      const avg = Math.round(sum / total);
-      avgPriceSpan.textContent = avg.toLocaleString('en-IN');
-    }
+function render(cars) {
+  carsTableBody.innerHTML = "";
+  if (!cars.length) {
+    carsTableBody.innerHTML = `<tr><td colspan="5" class="p-6 text-center text-slate-500">No cars yet</td></tr>`;
+    totalCarsSpan.textContent = 0;
+    avgPriceSpan.textContent = "₹0";
+    return;
+  }
 
-    function renderCarsTable(carsArray) {
-      carsTableBody.innerHTML = '';
+  let sum = 0;
+  cars.forEach(c => {
+    sum += c.price;
+    const tr = document.createElement("tr");
+    tr.className = "fade-in hover:bg-slate-800/60";
+    tr.innerHTML = `
+      <td class="p-2">${c.car_id}</td>
+      <td class="p-2">
+        <div class="font-medium">${c.brand}</div>
+        <div class="text-[11px] text-slate-400">${c.model}</div>
+      </td>
+      <td class="p-2 text-right">${c.year}</td>
+      <td class="p-2 text-right text-emerald-300">₹${c.price.toLocaleString("en-IN")}</td>
+      <td class="p-2 text-center">
+        <button onclick="editCar('${c.car_id}')" class="text-sky-400 text-[11px] mr-2">Edit</button>
+        <button onclick="deleteCar('${c.car_id}')" class="text-rose-400 text-[11px]">Delete</button>
+      </td>`;
+    carsTableBody.appendChild(tr);
+  });
 
-      if (carsArray.length === 0) {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td colspan="5" class="px-3 py-6 text-center text-[11px] text-slate-500">
-            No cars found. Create your first car from the left panel.
-          </td>
-        `;
-        carsTableBody.appendChild(tr);
-        renderStats([]);
-        return;
-      }
+  totalCarsSpan.textContent = cars.length;
+  avgPriceSpan.textContent = "₹" + Math.round(sum / cars.length).toLocaleString("en-IN");
+}
 
-      carsArray.forEach((car, idx) => {
-        const tr = document.createElement('tr');
-        tr.className =
-          idx % 2 === 0 ? 'bg-slate-900/40 hover:bg-slate-800/60' : 'hover:bg-slate-800/60';
-        tr.innerHTML = `
-          <td class="px-3 py-2 align-middle text-[11px] text-slate-300">${car.car_id}</td>
-          <td class="px-3 py-2 align-middle">
-            <div class="flex flex-col">
-              <span class="text-xs font-medium text-slate-100">${car.brand}</span>
-              <span class="text-[11px] text-slate-400">${car.model}</span>
-            </div>
-          </td>
-          <td class="px-3 py-2 align-middle text-right text-xs text-slate-200">${car.year}</td>
-          <td class="px-3 py-2 align-middle text-right text-xs text-emerald-300">
-            ₹ ${Number(car.price).toLocaleString('en-IN')}
-          </td>
-          <td class="px-3 py-2 align-middle text-center">
-            <div class="inline-flex gap-1">
-              <button
-                data-id="${car.car_id}"
-                class="edit-btn inline-flex items-center rounded-lg bg-sky-500/20 px-2 py-1 text-[11px] text-sky-200 border border-sky-500/40 hover:bg-sky-500/30 transition"
-              >
-                Edit
-              </button>
-              <button
-                data-id="${car.car_id}"
-                class="delete-btn inline-flex items-center rounded-lg bg-rose-500/20 px-2 py-1 text-[11px] text-rose-200 border border-rose-500/40 hover:bg-rose-500/30 transition"
-              >
-                Delete
-              </button>
-            </div>
-          </td>
-        `;
-        carsTableBody.appendChild(tr);
-      });
+async function loadCars() {
+  const cars = await api("/cars");
+  render(cars);
+}
 
-      renderStats(carsArray);
-    }
+async function editCar(id) {
+  const car = await api("/cars/" + id);
+  car_id.value = car.car_id;
+  brand.value = car.brand;
+  model.value = car.model;
+  year.value = car.year;
+  price.value = car.price;
+}
 
-    async function loadCars() {
-      try {
-        const data = await apiRequest('/cars');
-        const carsArray = Object.values(data || {});
-        renderCarsTable(carsArray);
-      } catch (err) {
-        renderCarsTable([]);
-        console.error(err);
-      }
-    }
+async function deleteCar(id) {
+  if (!confirm("Delete this car?")) return;
+  await api("/cars/" + id, { method: "DELETE" });
+  loadCars();
+}
 
-    async function pingApi() {
-      try {
-        const res = await apiRequest('/');
-        pingMsg.textContent = res.message || 'Connected';
-        pingMsg.className = 'mt-2 text-xs text-emerald-400';
-      } catch (err) {
-        pingMsg.textContent = 'Failed: ' + err.message;
-        pingMsg.className = 'mt-2 text-xs text-rose-400';
-      }
-    }
-
-    function fillForm(car) {
-      carIdInput.value = car.car_id;
-      brandInput.value = car.brand;
-      modelInput.value = car.model;
-      yearInput.value = car.year;
-      priceInput.value = car.price;
-    }
-
-    resetBtn.addEventListener('click', () => {
-      carForm.reset();
-      setFormMessage('');
+carForm.addEventListener("submit", async e => {
+  e.preventDefault();
+  try {
+    await api("/cars", {
+      method: "POST",
+      body: JSON.stringify({
+        car_id: car_id.value,
+        brand: brand.value,
+        model: model.value,
+        year: +year.value,
+        price: +price.value
+      })
     });
-
-    carForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const car = {
-        car_id: carIdInput.value.trim(),
-        brand: brandInput.value.trim(),
-        model: modelInput.value.trim(),
-        year: Number(yearInput.value),
-        price: Number(priceInput.value),
-      };
-
-      try {
-        const res = await apiRequest('/car', {
-          method: 'POST',
-          body: JSON.stringify(car),
-        });
-        setFormMessage(res.message || 'Car created');
-        await loadCars();
-      } catch (err) {
-        setFormMessage(err.message, 'err');
-      }
-    });
-
-    updateBtn.addEventListener('click', async () => {
-      const id = carIdInput.value.trim();
-      if (!id) {
-        setFormMessage('Car ID required for PUT', 'err');
-        return;
-      }
-      const car = {
-        car_id: id,
-        brand: brandInput.value.trim(),
-        model: modelInput.value.trim(),
-        year: Number(yearInput.value),
-        price: Number(priceInput.value),
-      };
-
-      try {
-        const res = await apiRequest('/car/' + encodeURIComponent(id), {
-          method: 'PUT',
-          body: JSON.stringify(car),
-        });
-        setFormMessage(res.message || 'Car updated');
-        await loadCars();
-      } catch (err) {
-        setFormMessage(err.message, 'err');
-      }
-    });
-
-    patchBtn.addEventListener('click', async () => {
-      const id = carIdInput.value.trim();
-      if (!id) {
-        setFormMessage('Car ID required for PATCH', 'err');
-        return;
-      }
-
-      const body = {};
-      if (brandInput.value.trim()) body.brand = brandInput.value.trim();
-      if (modelInput.value.trim()) body.model = modelInput.value.trim();
-      if (yearInput.value) body.year = Number(yearInput.value);
-      if (priceInput.value) body.price = Number(priceInput.value);
-
-      if (Object.keys(body).length === 0) {
-        setFormMessage('At least one field required for PATCH', 'err');
-        return;
-      }
-
-      try {
-        const res = await apiRequest('/car/' + encodeURIComponent(id), {
-          method: 'PATCH',
-          body: JSON.stringify(body),
-        });
-        setFormMessage(res.message || 'Car patched');
-        await loadCars();
-      } catch (err) {
-        setFormMessage(err.message, 'err');
-      }
-    });
-
-    carsTableBody.addEventListener('click', async (e) => {
-      const btn = e.target.closest('button');
-      if (!btn) return;
-      const id = btn.getAttribute('data-id');
-      if (!id) return;
-
-      if (btn.classList.contains('edit-btn')) {
-        try {
-          const car = await apiRequest('/car/' + encodeURIComponent(id));
-          fillForm(car);
-          setFormMessage('Loaded car ' + id + ' into form');
-        } catch (err) {
-          setFormMessage(err.message, 'err');
-        }
-      }
-
-      if (btn.classList.contains('delete-btn')) {
-        if (!confirm('Delete car ' + id + '?')) return;
-        try {
-          await apiRequest('/car/' + encodeURIComponent(id), {
-            method: 'DELETE',
-          });
-          await loadCars();
-        } catch (err) {
-          alert('Error deleting car: ' + err.message);
-        }
-      }
-    });
-
-    sortBtn.addEventListener('click', async () => {
-      const sortBy = sortBySelect.value;
-      const order = sortOrderSelect.value;
-      try {
-        const cars = await apiRequest(`/cars/sort?sort_by=${sortBy}&order=${order}`);
-        renderCarsTable(cars);
-      } catch (err) {
-        console.error(err);
-      }
-    });
-
-    loadCarsBtn.addEventListener('click', loadCars);
-    pingBtn.addEventListener('click', pingApi);
-
+    formMsg.textContent = "Car created";
+    formMsg.className = "text-xs text-emerald-400";
     loadCars();
-  </script>
+  } catch (err) {
+    formMsg.textContent = err.message;
+    formMsg.className = "text-xs text-rose-400";
+  }
+});
+
+updateBtn.addEventListener("click", async () => {
+  try {
+    await api("/cars/" + car_id.value, {
+      method: "PUT",
+      body: JSON.stringify({
+        brand: brand.value,
+        model: model.value,
+        year: +year.value,
+        price: +price.value
+      })
+    });
+    formMsg.textContent = "Car updated";
+    formMsg.className = "text-xs text-emerald-400";
+    loadCars();
+  } catch (err) {
+    formMsg.textContent = err.message;
+    formMsg.className = "text-xs text-rose-400";
+  }
+});
+
+resetBtn.onclick = () => carForm.reset();
+loadCars();
+</script>
+
 </body>
 </html>
+
